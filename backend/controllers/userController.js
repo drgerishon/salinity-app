@@ -112,7 +112,55 @@ const loginUser = asyncHanlder(async (req, res) => {
     throw new Error('invalid email or password');
   }
 });
+//logout user
+
+const logout = asyncHanlder( async (req,res) => {
+    res.cookie('token', " ", {
+        path: '/',
+        httpOnly: true,
+        expires: new Date(0), 
+        sameSite: 'none',
+        secure: true,
+      });
+      return res.status(200).json({ message: "successfully logged ouy"})
+})
+//get user data
+const getUser = asyncHanlder(async (req,res) => {
+    const user = await User.findById(req.user._id)
+
+    if(user) {
+        const { _id, name, email, photo, phone, bio} = user;
+        res.status(201).json({
+          _id,
+          name,
+          email,
+          photo,
+          phone,
+          bio,
+        });
+      } else {
+        res.status(400);
+        throw new Error('User not Found!');
+      }
+    
+})
+
+//get login status
+
+const loginStatus =asyncHanlder( async (req, res) => {
+    const token = req.cookies.token;
+    if(!token) {
+        return res.json(false)
+    }
+    const verified = jwt.verify(token, process.env.JWT_SECRET);
+    if(verified) {
+        return res.json(true);
+    }
+})
 module.exports = {
   registerUser,
   loginUser,
+  logout,
+  getUser,
+  loginStatus,
 };
