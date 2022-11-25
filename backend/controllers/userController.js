@@ -83,21 +83,21 @@ const loginUser = asyncHanlder(async (req, res) => {
   //user exixts, check password
   const passwordIsCorrect = await bcrypt.compare(password, user.password);
 
-    //genrate token for the user
-    const token = genrateToken(user._id);
+  //genrate token for the user
+  const token = genrateToken(user._id);
 
-    //send http-only cookie | send to frontend
-  
-    res.cookie('token', token, {
-      path: '/',
-      httpOnly: true,
-      expires: new Date(Date.now() + 1000 * 86400), //1 day
-      sameSite: 'none',
-      secure: true,
-    });
+  //send http-only cookie | send to frontend
+
+  res.cookie('token', token, {
+    path: '/',
+    httpOnly: true,
+    expires: new Date(Date.now() + 1000 * 86400), //1 day
+    sameSite: 'none',
+    secure: true,
+  });
 
   if (user && passwordIsCorrect) {
-    const { _id, name, email, photo, phone, bio} = user;
+    const { _id, name, email, photo, phone, bio } = user;
     res.status(201).json({
       _id,
       name,
@@ -114,53 +114,108 @@ const loginUser = asyncHanlder(async (req, res) => {
 });
 //logout user
 
-const logout = asyncHanlder( async (req,res) => {
-    res.cookie('token', " ", {
-        path: '/',
-        httpOnly: true,
-        expires: new Date(0), 
-        sameSite: 'none',
-        secure: true,
-      });
-      return res.status(200).json({ message: "successfully logged ouy"})
-})
+const logout = asyncHanlder(async (req, res) => {
+  res.cookie('token', ' ', {
+    path: '/',
+    httpOnly: true,
+    expires: new Date(0),
+    sameSite: 'none',
+    secure: true,
+  });
+  return res.status(200).json({ message: 'successfully logged ouy' });
+});
 //get user data
-const getUser = asyncHanlder(async (req,res) => {
-    const user = await User.findById(req.user._id)
+const getUser = asyncHanlder(async (req, res) => {
+  const user = await User.findById(req.user._id);
 
-    if(user) {
-        const { _id, name, email, photo, phone, bio} = user;
-        res.status(201).json({
-          _id,
-          name,
-          email,
-          photo,
-          phone,
-          bio,
-        });
-      } else {
-        res.status(400);
-        throw new Error('User not Found!');
-      }
-    
-})
+  if (user) {
+    const { _id, name, email, photo, phone, bio } = user;
+    res.status(201).json({
+      _id,
+      name,
+      email,
+      photo,
+      phone,
+      bio,
+    });
+  } else {
+    res.status(400);
+    throw new Error('User not Found!');
+  }
+});
 
 //get login status
 
-const loginStatus =asyncHanlder( async (req, res) => {
-    const token = req.cookies.token;
-    if(!token) {
-        return res.json(false)
-    }
-    const verified = jwt.verify(token, process.env.JWT_SECRET);
-    if(verified) {
-        return res.json(true);
-    }
-})
+const loginStatus = asyncHanlder(async (req, res) => {
+  const token = req.cookies.token;
+  if (!token) {
+    return res.json(false);
+  }
+  const verified = jwt.verify(token, process.env.JWT_SECRET);
+  if (verified) {
+    return res.json(true);
+  }
+});
+//update user
+const updateUser = asyncHanlder(async (req, res) => {
+  const user = await User.findById(req.user._id);
+  if (user) {
+    const { name, email, photo, phone, bio } = user;
+    user.email = email;
+    user.name = req.body.name || name;
+    user.phone = req.body.phone || phone;
+    user.bio = req.body.bio || bio;
+    user.photo = req.body.photo || photo;
+
+    const updatedUser = await user.save();
+    res.status(200).json({
+      _id: updatedUser.id,
+      name: updatedUser.name,
+      email: updatedUser.email,
+      photo: updatedUser.photo,
+      phone: updatedUser.phone,
+      bio: updatedUser.bio,
+    });
+  } else {
+    res.status(404);
+    throw new Error('user not found');
+  }
+});
+const changePassword = asyncHanlder(async (req, res) => {
+  const user = await User.findById(req.user._id);
+
+  const { oldPassword, password } = req.body;
+
+  //validate
+
+  if (!user) {
+    res.status(400);
+    throw new Error('User not found please sign up');
+  }
+
+  if (!oldPassword || !password) {
+    res.status(400);
+    throw new Error('please add old and new password');
+  }
+  //check if password is matching
+  const passwordIsCorrect = await bcrypt.compare(oldPassword, user.password);
+
+  // save new password
+  if (user && passwordIsCorrect) {
+    user.password = password;
+    await user.save();
+    res.status(200).send('password changed successfully');
+  } else {
+    res.status(404);
+    throw new Error('old password is incorrect');
+  }
+});
 module.exports = {
   registerUser,
   loginUser,
   logout,
   getUser,
   loginStatus,
+  updateUser,
+  changePassword,
 };
